@@ -1,3 +1,14 @@
+// Copyright (C) 2024 acoolnev(https://github.com/acoolnev)
+// This program is free software: you can redistribute it and/or modify it under the terms of
+// the GNU General Public License as published by the Free Software Foundation, version 3.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+// without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with this program.
+// If not, see <https://www.gnu.org/licenses/>.
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -14,10 +25,25 @@ Window {
 
     color: systemPalette.window
 
-    property bool gameStarted: false
+    enum GameStatus
+    {
+        INITIALIZED,
+        IN_PROGRESS,
+        WIN,
+        LOSS
+    }
 
+    property int gameStatus: App.GameStatus.INITIALIZED
+
+    function isGameCompleted()
+    {
+        return gameStatus === App.GameStatus.WIN || gameStatus === App.GameStatus.LOSS;
+    }
+
+    property var mineCells: []
     property int mines: 10
     property int flagged: 0
+    property int opened: 0
 
     function formatMinesCount()
     {
@@ -102,9 +128,15 @@ Window {
                         runTimer = true;
                     }
 
+                    // The function preserves the timer text to show it on a game completion.
                     function stopTimer()
                     {
                         runTimer = false;
+                    }
+
+                    function resetTimer()
+                    {
+                        timerText.text = formatElapsedTime();
                     }
 
                     function getElapsedTime()
@@ -159,20 +191,38 @@ Window {
             // of this section
             Layout.fillHeight: false
 
-            Button {
-                id: startOver
+            ColumnLayout
+            {
+                Image {
+                    Layout.alignment: Qt.AlignHCenter
 
-                visible: false
+                    id: smileyIcon
+                    source: gameStatus === App.GameStatus.WIN ? "images/smiley-happy.png" : "images/smiley-sad.png"
+                    visible: isGameCompleted()
+                }
 
-                Layout.alignment: Qt.AlignHCenter
-                text: "Start over"
-                hoverEnabled: true
+                Button {
+                    id: startOver
 
-                background: Rectangle {
-                    color: parent.down ? "#d6d6d6" : (parent.hovered ? "#e8e8e8" : "#f5f5f5")
-                    border.color: 'grey'
-                    border.width: 1
-                    radius: 4
+                    visible: true
+                    enabled: gameStatus !== App.GameStatus.INITIALIZED
+
+                    Layout.alignment: Qt.AlignHCenter
+                    text: isGameCompleted() ? qsTr("Play again") : qsTr("Start over")
+                    hoverEnabled: true
+
+                    background: Rectangle {
+                        color: parent.down ? "#d6d6d6" : (parent.hovered ? "#e8e8e8" : "#f5f5f5")
+                        border.color: 'grey'
+                        border.width: 1
+                        radius: 4
+                    }
+
+                    onClicked: {
+                        timerGroup.stopTimer();
+                        timerGroup.resetTimer();
+                        init();
+                    }
                 }
             }
         }
@@ -182,6 +232,11 @@ Window {
     function getRandom(max)
     {
         return Math.floor(Math.random() * max);
+    }
+
+    function getCellCount()
+    {
+        return Constants.gameGridRows * Constants.gameGridColumns;
     }
 
     function getCell(row, column)
@@ -227,9 +282,19 @@ Window {
 
     function onCellClick(row, column)
     {
-        if (!gameStarted)
+        if (gameStatus === App.GameStatus.INITIALIZED)
         {
             startGame(row, column);
+        }
+        else if (gameStatus !== App.GameStatus.IN_PROGRESS)
+        {
+            return;
+        }
+
+        if (getCell(row, column).isMine)
+        {
+            onGameLoss();
+            return;
         }
 
         let queue = [];
@@ -244,6 +309,7 @@ Window {
 
             let mineCount = calculateNearbyMineCount(getCell(row, column));
             cell.setNearbyMineCount(mineCount);
+            onCellOpening();
             if (mineCount > 0)
                 continue;
 
@@ -260,36 +326,84 @@ Window {
                 queue.push([nearRow, nearColumn]);
             }
         }
+
+        if (getCellCount() - opened === mines)
+        {
+            onGameWin();
+            return;
+        }
     }
 
     function onCellFlagging(isFlagged)
     {
+        if (gameStatus === App.GameStatus.INITIALIZED)
+        {
+            startGame(-1, -1);
+        }
+
         flagged += isFlagged ? 1 : -1;
+
+        console.log(String("onCellFlagging: isFlagged=%1 %2").arg(isFlagged).arg(flagged));
+    }
+
+    function onCellOpening()
+    {
+        opened += 1;
+    }
+
+    function onGameWin()
+    {
+        gameStatus = App.GameStatus.WIN;
+
+        timerGroup.stopTimer();
+
+        gameGrid.isEnabled = false;
+    }
+
+    function onGameLoss()
+    {
+        gameStatus = App.GameStatus.LOSS;
+
+        timerGroup.stopTimer();
+
+        for (let mineCell of mineCells)
+        {
+            mineCell.open();
+        }
+
+        gameGrid.isEnabled = false;
     }
 
     function init(rowCount, columnCount, mineCount)
     {
-        gameStarted = false;
+        gameStatus = App.GameStatus.INITIALIZED;
 
-        mines = mineCount;
+        mines = Constants.gameMineCount;
         flagged = 0;
-
-        gameGrid.rows = rowCount;
-        gameGrid.columns = columnCount;
-        gameGrid.mineCount = mineCount;
+        opened = 0;
 
         gameGrid.cellClickHandler = onCellClick;
         gameGrid.cellFlaggingHandler = onCellFlagging;
+
+        gameGrid.rows = Constants.gameGridRows;
+        gameGrid.columns = Constants.gameGridColumns;
+        gameGrid.mineCount = Constants.gameMineCount;
+
+        gameGrid.clear();
+        gameGrid.isEnabled = true;
     }
 
     function startGame(excludeMineAtRow, excludeMineAtColumn)
     {
-        if (gameStarted)
+        if (gameStatus === App.GameStatus.IN_PROGRESS)
             return;
 
-        gameStarted = true;
+        gameStatus = App.GameStatus.IN_PROGRESS;
 
         flagged = 0;
+        opened = 0;
+
+        mineCells = [];
 
         for (let i = 0; i < gameGrid.mineCount; ++i)
         {
@@ -303,14 +417,16 @@ Window {
             while (getCell(mineRow, mineColumn).isMine ||
                    (mineRow === excludeMineAtRow && mineColumn === excludeMineAtColumn));
 
-            getCell(mineRow, mineColumn).isMine = true;
+            let mineCell = getCell(mineRow, mineColumn);
+            mineCell.isMine = true;
+
+            mineCells.push(mineCell);
         }
 
         timerGroup.startTimer();
     }
 
 
-    Component.onCompleted: init(Constants.gameGridRows, Constants.gameGridColumns,
-                                Constants.gameMineCount)
+    Component.onCompleted: init()
 }
 

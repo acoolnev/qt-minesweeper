@@ -1,3 +1,14 @@
+// Copyright (C) 2024 acoolnev(https://github.com/acoolnev)
+// This program is free software: you can redistribute it and/or modify it under the terms of
+// the GNU General Public License as published by the Free Software Foundation, version 3.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+// without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with this program.
+// If not, see <https://www.gnu.org/licenses/>.
+
 import QtQuick 6.6
 import Minesweeper
 
@@ -13,13 +24,41 @@ Rectangle {
     property bool isFlagged: false
     property bool isOpened: false
     property int nearbyMineCount: -1
+
+    // Disables mouse event handling on game completion (win or loss)
+    property alias isEnabled: mouseArea.enabled
+
     property var clickHandler
     property var flaggingHandler
 
     function setNearbyMineCount(count)
     {
         isOpened = true;
+        if (isFlagged)
+        {
+            isFlagged = false;
+            console.log(String("setNearbyMineCount: isFlagged=false"));
+            flaggingHandler(false);
+        }
+
         nearbyMineCount = count;
+        renderState(false);
+    }
+
+    function open()
+    {
+        isOpened = true;
+        renderState(false);
+    }
+
+    function clear()
+    {
+        isMine = false;
+        isExploded = false;
+        isFlagged = false;
+        isOpened = false;
+        nearbyMineCount = -1;
+
         renderState(false);
     }
 
@@ -104,7 +143,7 @@ Rectangle {
         }
 
         mineIcon.visible = isMine && isOpened;
-        flagIcon.visible = isFlagged;
+        flagIcon.visible = isFlagged && !isOpened;
     }
 
     function onHover(entered)
@@ -116,6 +155,7 @@ Rectangle {
     }
 
     MouseArea {
+        id: mouseArea
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton

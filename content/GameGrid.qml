@@ -21,8 +21,9 @@ Rectangle {
     property int mineCount: 10
 
     property bool isEnabled: true
-    property var cellClickHandler
-    property var cellFlaggingHandler
+
+    signal cellClicked(int row, int column)
+    signal cellFlagFlipped(bool isFlagged)
 
     onIsEnabledChanged: {
         for (let row = 0; row < rows; ++row)
@@ -68,8 +69,8 @@ Rectangle {
                 row: rowIndex
                 column: columnIndex
 
-                clickHandler: cellClickHandler
-                flaggingHandler: cellFlaggingHandler
+                onClicked: (row, column) => grid.cellClicked(row, column)
+                onFlagFlipped: (isFlagged) => grid.cellFlagFlipped(isFlagged)
 
                 x: columnIndex * (Constants.cellWidth + Constants.cellGap)
                 y: rowIndex * (Constants.cellHeight + Constants.cellGap)

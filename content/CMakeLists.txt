@@ -15,5 +15,7 @@ qt6_add_qml_module(content
         images/flag.png
         images/mine-black.png
         images/mine-red.png
+        images/smiley-happy.png
+        images/smiley-sad.png
         images/watch.png
 )

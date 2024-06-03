@@ -13,6 +13,8 @@ import QtQuick 6.6
 import Minesweeper
 
 Rectangle {
+    id: cell
+
     width: Constants.cellWidth
     height: Constants.cellHeight
 
@@ -28,8 +30,8 @@ Rectangle {
     // Disables mouse event handling on game completion (win or loss)
     property alias isEnabled: mouseArea.enabled
 
-    property var clickHandler
-    property var flaggingHandler
+    signal clicked(int row, int column)
+    signal flagFlipped(bool isFlagged)
 
     function setNearbyMineCount(count)
     {
@@ -37,8 +39,7 @@ Rectangle {
         if (isFlagged)
         {
             isFlagged = false;
-            console.log(String("setNearbyMineCount: isFlagged=false"));
-            flaggingHandler(false);
+            flagFlipped(false);
         }
 
         nearbyMineCount = count;
@@ -179,7 +180,7 @@ Rectangle {
                 if (isMine)
                     isExploded = true;
 
-                clickHandler(row, column);
+                cell.clicked(row, column);
             }
             else if (mouse.button === Qt.RightButton)
             {
@@ -188,7 +189,7 @@ Rectangle {
 
                 isFlagged = !isFlagged;
 
-                flaggingHandler(isFlagged)
+                flagFlipped(isFlagged)
             }
 
             renderState(true);

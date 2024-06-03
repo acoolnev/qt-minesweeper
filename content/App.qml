@@ -79,6 +79,9 @@ Window {
 
             GameGrid {
                 id: gameGrid
+
+                onCellClicked: (row, column) => onCellClick(row, column)
+                onCellFlagFlipped: (isFlagged) => onCellFlagging(isFlagged)
             }
         }
 
@@ -342,8 +345,6 @@ Window {
         }
 
         flagged += isFlagged ? 1 : -1;
-
-        console.log(String("onCellFlagging: isFlagged=%1 %2").arg(isFlagged).arg(flagged));
     }
 
     function onCellOpening()
@@ -381,9 +382,6 @@ Window {
         mines = Constants.gameMineCount;
         flagged = 0;
         opened = 0;
-
-        gameGrid.cellClickHandler = onCellClick;
-        gameGrid.cellFlaggingHandler = onCellFlagging;
 
         gameGrid.rows = Constants.gameGridRows;
         gameGrid.columns = Constants.gameGridColumns;
